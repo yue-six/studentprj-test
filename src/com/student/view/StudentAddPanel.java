@@ -1,195 +1,109 @@
 package com.student.view;
 
-import com.student.entity.SchoolClass;
 import com.student.entity.Group;
 import com.student.entity.Student;
-import com.student.service.ClassService;
 import com.student.util.Constant;
+import com.student.util.FileUtil;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import java.awt.*;
-import java.util.UUID;
+import java.util.List;
 
+/*
+  学生添加面板，用于新增学生信息。
+ */
 public class StudentAddPanel extends JPanel {
-    private ClassService classService;
-    private MainFrame mainFrame;
-    private JComboBox<SchoolClass> classComboBox;
-    private JComboBox<Group> groupComboBox;
-    private JTextField studentNameField;
-    private JTextField studentIdField;
-    private JButton addButton;
-    private JLabel messageLabel;
+    /*
+     构造函数，初始化面板。
+     */
+    public StudentAddPanel() {
+        this.setLayout(null); // 设置布局管理器为null，使用绝对定位
+        this.setBorder(new TitledBorder(new EtchedBorder(), "新增学生")); // 设置边框
 
-    public StudentAddPanel(MainFrame mainFrame) {
-        this.mainFrame = mainFrame;
-        this.classService = ClassService.getInstance();
-        initComponents();
-        layoutComponents();
-        addListeners();
-    }
+        // 创建UI组件
+        JLabel lblId = new JLabel("学号：");
+        JTextField txtId = new JTextField();
+        JLabel lblName = new JLabel("姓名：");
+        JTextField txtName = new JTextField();
+        JLabel lblGroup = new JLabel("小组:");
+        JComboBox<String> cmbGroup = new JComboBox<>();
+        JButton btnName = new JButton("确认");
 
-    private void initComponents() {
-        setBorder(new TitledBorder(new EtchedBorder(), "添加新学生"));
+        // 将组件添加到面板
+        this.add(lblId);
+        this.add(txtId);
+        this.add(lblName);
+        this.add(txtName);
+        this.add(lblGroup);
+        this.add(cmbGroup);
+        this.add(btnName);
 
-        classComboBox = new JComboBox<>();
-        groupComboBox = new JComboBox<>();
-        studentNameField = new JTextField(20);
-        studentIdField = new JTextField(20);
-        addButton = new JButton("添加学生");
-        messageLabel = new JLabel(" ");
-        messageLabel.setForeground(Color.BLUE);
+        // 设置组件的位置和大小
+        lblId.setBounds(200, 60, 100, 30);
+        txtId.setBounds(200, 100, 100, 30);
+        lblName.setBounds(200, 140, 100, 30);
+        txtName.setBounds(200, 180, 200, 30);
+        lblGroup.setBounds(200, 220, 100, 30);
+        cmbGroup.setBounds(200, 260, 100, 30);
+        btnName.setBounds(200, 300, 100, 30);
 
-        refreshClassComboBox();
-        groupComboBox.addItem(null);
-    }
+        // 加载小组列表并填充到下拉框
+        List<Group> groups = FileUtil.loadGroups();
+        cmbGroup.addItem("请选择小组");
+        for (Group group : groups) {
+            cmbGroup.addItem(group.getName());
+        }
 
-    private void layoutComponents() {
-        setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM);
-
-        int row = 0;
-
-        // 班级选择
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("选择班级:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = row++;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        add(classComboBox, gbc);
-
-        // 小组选择
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("选择小组:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = row++;
-        gbc.anchor = GridBagConstraints.WEST;
-        add(groupComboBox, gbc);
-
-        // 学生姓名
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("学生姓名:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = row++;
-        gbc.anchor = GridBagConstraints.WEST;
-        add(studentNameField, gbc);
-
-        // 学号
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("学号:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = row++;
-        gbc.anchor = GridBagConstraints.WEST;
-        add(studentIdField, gbc);
-
-        // 添加按钮
-        gbc.gridx = 1;
-        gbc.gridy = row++;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.NONE;
-        add(addButton, gbc);
-
-        // 消息标签
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
-        add(messageLabel, gbc);
-    }
-
-    private void addListeners() {
-        classComboBox.addActionListener(e -> {
-            SchoolClass selectedClass = (SchoolClass) classComboBox.getSelectedItem();
-            refreshGroupComboBox(selectedClass);
-        });
-
-        addButton.addActionListener(e -> {
-            SchoolClass selectedClass = (SchoolClass) classComboBox.getSelectedItem();
-            if (selectedClass == null) {
-                showMessage("请先选择班级", false);
+        // 确认按钮事件
+        btnName.addActionListener(e -> {
+            // 检查输入是否完整
+            if (txtId.getText() == null || txtId.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写学号", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (txtName.getText() == null || txtName.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写学生姓名", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (cmbGroup.getSelectedIndex() == 0) {
+                JOptionPane.showMessageDialog(this, "请选择小组", "", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
-            String studentName = studentNameField.getText().trim();
-            if (studentName.isEmpty()) {
-                showMessage("学生姓名不能为空", false);
+            // 加载现有学生列表
+            List<Student> students = FileUtil.loadStudents();
+
+            // 检查学号是否重复
+            String studentId = txtId.getText().trim();
+            boolean isDuplicate = students.stream()
+                    .anyMatch(student -> student.getId().equals(studentId));
+            if (isDuplicate) {
+                JOptionPane.showMessageDialog(this, "学号已存在", "", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
+            // 创建新学生并添加到列表
+            Student newStudent = new Student(
+                    studentId,
+                    txtName.getText().trim(),
+                    cmbGroup.getSelectedItem().toString()
+            );
+            students.add(newStudent);
+
+            // 保存到文件
             try {
-                String studentId = studentIdField.getText().trim();
-                if (studentId.isEmpty()) {
-                    studentId = UUID.randomUUID().toString();
-                }
+                FileUtil.saveStudents(students);
+                JOptionPane.showMessageDialog(this, "新增学生成功", "", JOptionPane.INFORMATION_MESSAGE);
 
-                Student newStudent = new Student(studentId, studentName);
-                Group selectedGroup = (Group) groupComboBox.getSelectedItem();
-
-                if (selectedGroup != null) {
-                    selectedGroup.addStudent(newStudent);
-                    newStudent.setGroupId(selectedGroup.getId());
-                }
-
-                selectedClass.addStudent(newStudent);
-                classService.saveData();
-
-                clearFields();
-                showMessage("学生 " + studentName + " 添加成功", true);
-                mainFrame.refreshAll();
-
+                // 清空输入框
+                txtId.setText("");
+                txtName.setText("");
+                cmbGroup.setSelectedIndex(0);
             } catch (Exception ex) {
-                showMessage("添加学生失败: " + ex.getMessage(), false);
+                JOptionPane.showMessageDialog(this, "保存学生信息失败：" + ex.getMessage(),
+                        "", JOptionPane.ERROR_MESSAGE);
             }
         });
-    }
-
-    private void showMessage(String message, boolean isSuccess) {
-        messageLabel.setText(message);
-        messageLabel.setForeground(isSuccess ? Color.BLUE : Color.RED);
-
-        Timer timer = new Timer(3000, e -> messageLabel.setText(" "));
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-    public void refreshClassComboBox() {
-        classComboBox.removeAllItems();
-        for (SchoolClass schoolClass : classService.getAllClasses()) {
-            classComboBox.addItem(schoolClass);
-        }
-    }
-
-    private void refreshGroupComboBox(SchoolClass schoolClass) {
-        groupComboBox.removeAllItems();
-        groupComboBox.addItem(null);
-        if (schoolClass != null) {
-            for (Group group : schoolClass.getGroups()) {
-                groupComboBox.addItem(group);
-            }
-        }
-    }
-
-    public void clearFields() {
-        studentNameField.setText("");
-        studentIdField.setText("");
-        messageLabel.setText(" ");
     }
 }

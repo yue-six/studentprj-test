@@ -1,203 +1,156 @@
 package com.student.view;
 
-import com.student.entity.SchoolClass;
-import com.student.entity.Group;
 import com.student.entity.Student;
-import com.student.service.ClassService;
 import com.student.util.Constant;
+import com.student.util.FileUtil;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import java.awt.*;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+import java.util.Random;
 
+/*
+  随机学生点名面板，用于随机选择学生，并进行缺勤、请假和答题的记录。
+ */
 public class RandomStudentPanel extends JPanel {
-    private ClassService classService;
-    private SchoolClass currentClass;
-    private JComboBox<Group> groupComboBox;
-    private JButton randomButton;
-    private JButton addScoreButton;
-    private JButton minusScoreButton;
-    private JLabel resultLabel;
-    private Timer blinkTimer;
-    private int blinkCount;
-    private Student lastSelectedStudent;
-    private Set<Student> excludedStudents;
+    // UI组件
+    private JLabel lbl2 = new JLabel("学生姓名：");
+    private JLabel lbl3 = new JLabel("学生照片：");
+    private JLabel lblPic = new JLabel("照片");
+    private JTextField txtStudent = new JTextField();
+    private JButton btnChooseStudent = new JButton("随机学生");
+    private JButton btnAbsence = new JButton("缺勤");
+    private JButton btnLeave = new JButton("请假");
+    private JButton btnAnswer = new JButton("答题");
+    // 线程，用于随机抽取学生
+    Thread threadStudent = null;
+    private Student currentStudent = null; // 当前选中的学生
+    private List<Student> students; // 学生列表
+    private Random random = new Random();
+    private boolean isSelecting = false; // 是否正在随机选择中
 
-    public RandomStudentPanel(ClassService classService) {
-        this.classService = classService;
-        this.excludedStudents = new HashSet<>();
-        initComponents();
-        layoutComponents();
-        addListeners();
-    }
+    /**
+     * 构造函数，初始化面板。
+     */
+    public RandomStudentPanel() {
+        this.setBorder(new TitledBorder(new EtchedBorder(), "随机学生点名"));
+        this.setLayout(null);
+        // 添加UI组件
+        this.add(lbl2);
+        this.add(lbl3);
+        this.add(txtStudent);
+        this.add(lblPic);
+        this.add(btnChooseStudent);
+        this.add(btnAbsence);
+        this.add(btnLeave);
+        this.add(btnAnswer);
 
-    private void initComponents() {
-        setBorder(new TitledBorder(new EtchedBorder(), "随机点名"));
+        // 设置UI组件的位置和属性
+        lbl2.setBounds(160, 50, 100, 30);
+        txtStudent.setBounds(160, 90, 130, 30);
+        txtStudent.setEditable(false);
+        lblPic.setBounds(160, 130, 130, 150);
+        btnChooseStudent.setBounds(160, 300, 130, 30);
+        btnAbsence.setBounds(160, 340, 60, 30);
+        btnLeave.setBounds(230, 340, 60, 30);
+        btnAnswer.setBounds(300, 340, 60, 30);
 
-        groupComboBox = new JComboBox<>();
-        groupComboBox.addItem(null);
+        // 初始化时禁用操作按钮
+        btnAbsence.setEnabled(false);
+        btnLeave.setEnabled(false);
+        btnAnswer.setEnabled(false);
 
-        randomButton = new JButton("开始抽取");
-        addScoreButton = new JButton("+分");
-        minusScoreButton = new JButton("-分");
+        // 加载学生列表
+        students = FileUtil.loadStudents();
 
-        resultLabel = new JLabel("等待抽取...");
-        resultLabel.setFont(Constant.FONT_TITLE);
-        resultLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        // 随机选择学生按钮事件
+        btnChooseStudent.addActionListener(e -> {
+            if (students.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "没有可选择的学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
 
-        blinkTimer = new Timer(Constant.BLINK_INTERVAL, e -> updateRandomDisplay());
-        blinkCount = 0;
+            if (isSelecting) {
+                // 停止选择
+                isSelecting = false;
+                btnChooseStudent.setText("随机学生");
+                if (threadStudent != null) {
+                    threadStudent.interrupt();
+                    threadStudent = null;
+                }
+                // 启用操作按钮
+                btnAbsence.setEnabled(true);
+                btnLeave.setEnabled(true);
+                btnAnswer.setEnabled(true);
+            } else {
+                // 开始选择
+                isSelecting = true;
+                btnChooseStudent.setText("停");
+                // 禁用操作按钮
+                btnAbsence.setEnabled(false);
+                btnLeave.setEnabled(false);
+                btnAnswer.setEnabled(false);
 
-        randomButton.setEnabled(false);
-        addScoreButton.setEnabled(false);
-        minusScoreButton.setEnabled(false);
-    }
-
-    private void layoutComponents() {
-        setLayout(new BorderLayout(Constant.PADDING_MEDIUM, Constant.PADDING_MEDIUM));
-
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        topPanel.add(new JLabel("选择小组:"));
-        topPanel.add(groupComboBox);
-
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.add(resultLabel);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        buttonPanel.add(randomButton);
-        buttonPanel.add(addScoreButton);
-        buttonPanel.add(minusScoreButton);
-
-        add(topPanel, BorderLayout.NORTH);
-        add(centerPanel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
-    }
-
-    private void addListeners() {
-        groupComboBox.addActionListener(e -> refreshData());
-
-        randomButton.addActionListener(e -> {
-            if (!blinkTimer.isRunning()) {
-                startRandomSelection();
+                threadStudent = new Thread(() -> {
+                    try {
+                        while (!Thread.interrupted()) {
+                            // 随机选择一个学生
+                            int index = random.nextInt(students.size());
+                            currentStudent = students.get(index);
+                            SwingUtilities.invokeLater(() ->
+                                    txtStudent.setText(currentStudent.getName())
+                            );
+                            Thread.sleep(50); // 控制滚动速度
+                        }
+                    } catch (InterruptedException ex) {
+                        // 正常中断，不需要处理
+                    }
+                });
+                threadStudent.start();
             }
         });
 
-        addScoreButton.addActionListener(e -> {
-            if (lastSelectedStudent != null) {
-                lastSelectedStudent.setScore(lastSelectedStudent.getScore() + 1);
-                classService.saveData();
-                updateResultLabel();
+        // 记录缺勤按钮事件
+        btnAbsence.addActionListener(e -> {
+            if (currentStudent == null) {
+                JOptionPane.showMessageDialog(this, "请先随机选择学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
+
+            // 扣除分数并保存
+            currentStudent.setScore(currentStudent.getScore() - Constant.ABSENTEEISM_SCORE);
+            FileUtil.saveStudents(students);
+            JOptionPane.showMessageDialog(this, "已记录缺勤，扣除" + Constant.ABSENTEEISM_SCORE + "分",
+                    "", JOptionPane.INFORMATION_MESSAGE);
         });
 
-        minusScoreButton.addActionListener(e -> {
-            if (lastSelectedStudent != null) {
-                lastSelectedStudent.setScore(lastSelectedStudent.getScore() - 1);
-                classService.saveData();
-                updateResultLabel();
+        // 记录请假按钮事件
+        btnLeave.addActionListener(e -> {
+            if (currentStudent == null) {
+                JOptionPane.showMessageDialog(this, "请先随机选择学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
+
+            // 扣除分数并保存
+            currentStudent.setScore(currentStudent.getScore() - Constant.LEAVE_SCORE);
+            FileUtil.saveStudents(students);
+            JOptionPane.showMessageDialog(this, "已记录请假，扣除" + Constant.LEAVE_SCORE + "分",
+                    "", JOptionPane.INFORMATION_MESSAGE);
         });
-    }
 
-    private void startRandomSelection() {
-        if (currentClass == null) return;
-
-        Group selectedGroup = (Group) groupComboBox.getSelectedItem();
-        if (selectedGroup != null && selectedGroup.getStudents().isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "该小组没有学生",
-                    "提示",
-                    JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        if (currentClass.getStudents().isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "班级中没有学生",
-                    "提示",
-                    JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        blinkCount = 0;
-        randomButton.setEnabled(false);
-        addScoreButton.setEnabled(false);
-        minusScoreButton.setEnabled(false);
-        blinkTimer.start();
-    }
-
-    private void updateRandomDisplay() {
-        if (currentClass == null) return;
-
-        Student randomStudent;
-        Group selectedGroup = (Group) groupComboBox.getSelectedItem();
-
-        if (selectedGroup != null) {
-            randomStudent = classService.getRandomStudentFromGroup(
-                    currentClass.getId(), selectedGroup.getId());
-        } else {
-            randomStudent = classService.getRandomStudent(currentClass.getId());
-        }
-
-        if (randomStudent != null) {
-            resultLabel.setText(randomStudent.toString());
-        }
-
-        blinkCount++;
-        if (blinkCount >= Constant.BLINK_TIMES) {
-            blinkTimer.stop();
-            lastSelectedStudent = randomStudent;
-            randomButton.setEnabled(true);
-            addScoreButton.setEnabled(true);
-            minusScoreButton.setEnabled(true);
-            excludedStudents.add(randomStudent);
-        }
-    }
-
-    private void updateResultLabel() {
-        if (lastSelectedStudent != null) {
-            resultLabel.setText(lastSelectedStudent.toString());
-        }
-    }
-
-    public void onClassChanged(SchoolClass newClass) {
-        this.currentClass = newClass;
-        refreshGroupComboBox();
-        refreshData();
-    }
-
-    private void refreshGroupComboBox() {
-        groupComboBox.removeAllItems();
-        groupComboBox.addItem(null);
-        if (currentClass != null) {
-            for (Group group : currentClass.getGroups()) {
-                groupComboBox.addItem(group);
+        // 记录答题按钮事件
+        btnAnswer.addActionListener(e -> {
+            if (currentStudent == null) {
+                JOptionPane.showMessageDialog(this, "请先随机选择学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
-        }
-    }
 
-    public void refreshData() {
-        if (currentClass != null) {
-            Group selectedGroup = (Group) groupComboBox.getSelectedItem();
-            String groupInfo = selectedGroup != null ? " - " + selectedGroup.getName() : "";
-            resultLabel.setText("当前班级：" + currentClass.getName() + groupInfo + " - 等待抽取...");
-            randomButton.setEnabled(true);
-        } else {
-            resultLabel.setText("等待抽取...");
-            randomButton.setEnabled(false);
-        }
-
-        if (blinkTimer.isRunning()) {
-            blinkTimer.stop();
-            blinkCount = 0;
-            randomButton.setEnabled(true);
-        }
-
-        addScoreButton.setEnabled(false);
-        minusScoreButton.setEnabled(false);
-        excludedStudents.clear();
+            // 增加分数并保存
+            currentStudent.setScore(currentStudent.getScore() + Constant.ANSWER_QUESTION);
+            FileUtil.saveStudents(students);
+            JOptionPane.showMessageDialog(this, "回答正确，加" + Constant.ANSWER_QUESTION + "分",
+                    "", JOptionPane.INFORMATION_MESSAGE);
+        });
     }
 }

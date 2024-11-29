@@ -1,66 +1,42 @@
 package com.student.util;
 
-import java.awt.*;
-import java.io.File;
+import com.student.entity.Group;
+import com.student.entity.Student;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+
+// Constant类用于存放整个学生相关应用程序中的常量和一些共享的数据结构
 public class Constant {
-    // 文件存储相关常量
-    public static final String DATA_DIR = "data";
-    public static final String FILE_PATH = DATA_DIR + File.separator;
-    public static final String CLASS_FILE = FILE_PATH + "classes.dat";
 
-    // 窗口尺寸常量
-    public static final int WINDOW_WIDTH = 1024;
-    public static final int WINDOW_HEIGHT = 768;
-    public static final int DIALOG_WIDTH = 400;
-    public static final int DIALOG_HEIGHT = 300;
+    // FILE_PATH是一个静态常量，用于指定文件的存储路径。
+    // 这里通过System.getProperty("user.home")获取用户的主目录，然后拼接上特定的目录结构 "/starschool/classes/"，
+    // 以此来确定应用程序相关文件的存储位置，例如可能用于存储班级信息、学生成绩等相关文件。
+    public static final String FILE_PATH = System.getProperty("user.home") + "/starschool/classes/";
 
-    // 面板尺寸常量
-    public static final int PANEL_WIDTH = 300;
-    public static final int PANEL_HEIGHT = 400;
-    public static final int LIST_WIDTH = 200;
-    public static final int LIST_HEIGHT = 300;
+    // CLASS_PATH是一个静态变量，用于存储班级的路径信息。
+    // 初始值为空字符串，在程序运行过程中可能会根据实际情况被赋值，比如根据用户选择的班级或系统配置来确定具体的班级路径。
+    public static String CLASS_PATH = "";
 
-    // 组件尺寸常量
-    public static final int BUTTON_WIDTH = 120;
-    public static final int BUTTON_HEIGHT = 30;
-    public static final int TEXT_FIELD_WIDTH = 200;
-    public static final int TEXT_FIELD_HEIGHT = 25;
+    // groups是一个静态的LinkedHashMap，用于存放当前班级的小组和对应的学生列表。
+    // 其中键（Key）是Group类型，表示班级中的各个小组；值（Value）是List<Student>类型，表示每个小组中的学生列表。
+    // 这种数据结构方便根据小组来快速获取该小组下的所有学生信息，并且LinkedHashMap保留了插入顺序，便于后续按照插入顺序进行相关操作。
+    public static LinkedHashMap<Group, List<Student>> groups = new LinkedHashMap<>();
 
-    // 边距和间距常量
-    public static final int PADDING_SMALL = 5;
-    public static final int PADDING_MEDIUM = 10;
-    public static final int PADDING_LARGE = 20;
-    public static final int MARGIN_SMALL = 5;
-    public static final int MARGIN_MEDIUM = 10;
-    public static final int MARGIN_LARGE = 20;
+    // students是一个静态的ArrayList，用于存放当前班级的所有学生信息。
+    // 它可以方便地对班级内的所有学生进行统一管理，例如遍历所有学生进行成绩统计、信息查询等操作。
+    public static List<Student> students = new ArrayList<>();
 
-    // 字体相关常量
-    public static final String FONT_NAME = "宋体";
-    public static final int FONT_SIZE_SMALL = 12;
-    public static final int FONT_SIZE_MEDIUM = 14;
-    public static final int FONT_SIZE_LARGE = 16;
-    public static final int FONT_SIZE_TITLE = 20;
+    // ABSENTEEISM_SCORE是一个静态常量，用于定义学生缺勤时所扣除的分数。
+    // 在这里规定学生每缺勤一次会扣除5分，该常量在整个程序中用于统一的分数计算逻辑，确保扣分标准的一致性。
+    public static final int ABSENTEEISM_SCORE = 5;
 
-    // 字体对象常量
-    public static final Font FONT_NORMAL = new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_MEDIUM);
-    public static final Font FONT_BOLD = new Font(FONT_NAME, Font.BOLD, FONT_SIZE_MEDIUM);
-    public static final Font FONT_TITLE = new Font(FONT_NAME, Font.BOLD, FONT_SIZE_TITLE);
+    // LEAVE_SCORE是一个静态常量，用于定义学生请假时所扣除的分数。
+    // 规定学生每请假一次会扣除2分，同样用于程序中统一的分数计算逻辑，使得请假扣分的操作有明确且一致的标准。
+    public static final int LEAVE_SCORE = 2;
 
-    // 随机抽取相关常量
-    public static final int BLINK_TIMES = 20;
-    public static final int BLINK_INTERVAL = 100;
-
-    // 初始化方法：确保数据目录存在
-    static {
-        File dataDir = new File(DATA_DIR);
-        if (!dataDir.exists()) {
-            dataDir.mkdirs();
-        }
-    }
-
-    // 私有构造函数，防止实例化
-    private Constant() {
-        throw new AssertionError("Constant class cannot be instantiated");
-    }
+    // ANSWER_QUESTION是一个静态常量，用于定义学生回答问题正确时所增加的分数。
+    // 当学生正确回答一个问题时，会在其原有分数基础上增加3分，此常量确保了加分操作在整个程序中的标准统一。
+    public static final int ANSWER_QUESTION = 3;
 }

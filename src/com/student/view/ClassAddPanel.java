@@ -1,92 +1,97 @@
 package com.student.view;
 
-import com.student.entity.SchoolClass;
-import com.student.service.ClassService;
 import com.student.util.Constant;
+import com.student.util.FileUtil;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import java.awt.*;
-import java.util.UUID;
+import java.awt.BorderLayout;
+import java.io.File;
+import java.io.IOException;
 
+/*
+ ClassAddPanel 类是用于新增班级的面板。
+ 该面板包含一个文本框用于输入班级名称，以及一个确认按钮来创建新的班级目录。
+ */
 public class ClassAddPanel extends JPanel {
-    private ClassService classService;
+    // 主框架引用
     private MainFrame mainFrame;
-    private JTextField classNameField;
-    private JButton addButton;
-    private JLabel messageLabel;
+
+    /*
+      构造函数，初始化面板并设置布局和组件。
+      @param mainFrame 主框架实例
+     */
     public ClassAddPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        this.classService = ClassService.getInstance();
-        initComponents();
-        layoutComponents();
-        addListeners();
-    }
-    private void initComponents() {
-        setBorder(new TitledBorder(new EtchedBorder(), "添加新班级"));
-        classNameField = new JTextField(20);
-        addButton = new JButton("添加班级");
-        messageLabel = new JLabel(" ");
-        messageLabel.setForeground(Color.BLUE);
-    }
-    private void layoutComponents() {
-        setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM);
-// 班级名称标签和输入框
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("班级名称:"), gbc);
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        add(classNameField, gbc);
-        // 添加按钮
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.NONE;
-        add(addButton, gbc);
-// 消息标签
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
-        add(messageLabel, gbc);
-    }
-    private void addListeners() {
-        addButton.addActionListener(e -> {
-            String className = classNameField.getText().trim();
-            if (className.isEmpty()) {
-                showMessage("班级名称不能为空", false);
+        // 设置绝对布局
+        this.setLayout(null);
+        // 设置边框样式
+        this.setBorder(new TitledBorder(new EtchedBorder(), "新增班级"));
+
+        // 创建标签、文本框和按钮
+        JLabel lblName = new JLabel("班级名称：");
+        JTextField txtName = new JTextField();
+        JButton btnName = new JButton("确认");
+
+        // 将组件添加到面板
+        this.add(lblName);
+        this.add(txtName);
+        this.add(btnName);
+
+        // 设置组件的位置和大小
+        lblName.setBounds(200, 80, 100, 30);
+        txtName.setBounds(200, 130, 200, 30);
+        btnName.setBounds(200, 180, 100, 30);
+
+        // 为确认按钮添加动作监听器
+        btnName.addActionListener(e -> {
+            // 检查文本框是否为空
+            if (txtName.getText() == null || txtName.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写班级名称", "", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
+
             try {
-                SchoolClass newClass = new SchoolClass(UUID.randomUUID().toString(), className);
-                classService.addClass(newClass);
-                classNameField.setText("");
-                showMessage("班级 " + className + " 添加成功", true);
-                mainFrame.refreshAll();
+                // 获取并修剪文本框中的班级名称
+                String className = txtName.getText().trim();
+                File classDir = new File(Constant.FILE_PATH + className);
+
+                // 检查班级名称是否已存在
+                if (classDir.exists()) {
+                    JOptionPane.showMessageDialog(this, "班级名称已存在", "", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // 创建班级目录
+                try {
+                    FileUtil.createClassDirectory(className);
+                    System.out.println("正在创建班级目录: " + classDir.getAbsolutePath());
+
+                    // 检查目录是否成功创建
+                    if (classDir.exists()) {
+                        JOptionPane.showMessageDialog(this, "新增班级成功", "", JOptionPane.INFORMATION_MESSAGE);
+                        txtName.setText(""); // 清空输入框
+                        mainFrame.refreshClassList(); // 刷新主框架中的班级列表
+                    } else {
+                        throw new IOException("目录创建失败");
+                    }
+                } catch (IOException ex) {
+                    System.err.println("创建班级失败: " + ex.getMessage());
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this,
+                            "创建班级失败：" + ex.getMessage(),
+                            "错误",
+                            JOptionPane.ERROR_MESSAGE);
+                }
             } catch (Exception ex) {
-                showMessage("添加班级失败: " + ex.getMessage(), false);
+                System.err.println("未预期的错误: " + ex.getMessage());
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this,
+                        "创建班级时发生错误：" + ex.getMessage(),
+                        "错误",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
-    }
-    private void showMessage(String message, boolean isSuccess) {
-        messageLabel.setText(message);
-        messageLabel.setForeground(isSuccess ? Color.BLUE : Color.RED);
-        Timer timer = new Timer(3000, e -> messageLabel.setText(" "));
-        timer.setRepeats(false);
-        timer.start();
-    }
-    public void clearFields() {
-        classNameField.setText("");
-        messageLabel.setText(" ");
     }
 }

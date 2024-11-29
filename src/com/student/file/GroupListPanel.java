@@ -1,4 +1,4 @@
-package com.student.view;
+package com.student.file;
 
 import com.student.entity.Group;
 import com.student.util.Constant;
@@ -12,57 +12,75 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/*
+这个类是用于显示和管理小组列表的面板，继承自JPanel。
+ */
 public class GroupListPanel extends JPanel {
+    // 表格头部标题
     String[] headers = {"序号", "小组名称", "分数"};
+    // 表格数据
     String[][] data;
+    // 表格组件
     JTable classTable;
+    // 文本框，用于输入小组名称和分数
     JTextField txtName = new JTextField();
     JTextField txtScore = new JTextField();
+    // 按钮，用于修改和删除小组
     JButton btnEdit = new JButton("修改");
     JButton btnDelete = new JButton("删除");
+    // 小组列表
     private List<Group> groups;
 
+    /**
+     * 构造函数，初始化面板。
+     */
     public GroupListPanel() {
+        // 设置边框样式
         this.setBorder(new TitledBorder(new EtchedBorder(), "小组列表"));
+        // 设置布局管理器为BorderLayout
         this.setLayout(new BorderLayout());
 
         // 加载小组数据
         groups = FileUtil.loadGroups();
+        // 初始化表格数据
         data = new String[groups.size()][3];
         for (int i = 0; i < groups.size(); i++) {
             Group group = groups.get(i);
-            data[i][0] = String.valueOf(i + 1);
-            data[i][1] = group.getName();
-            data[i][2] = String.valueOf(group.getScore());
+            data[i][0] = String.valueOf(i + 1); // 序号
+            data[i][1] = group.getName(); // 小组名称
+            data[i][2] = String.valueOf(group.getScore()); // 分数
         }
 
+        // 创建表格模型并设置表格
         DefaultTableModel tableModel = new DefaultTableModel(data, headers);
         classTable = new JTable(tableModel) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false; // 设置表格不可编辑
             }
         };
+        // 设置表格选择模式为单选
         classTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        // 将表格放入滚动面板中
         JScrollPane scrollPane = new JScrollPane(classTable);
         this.add(scrollPane, BorderLayout.CENTER);
 
         // 构建按钮面板
         JPanel btnPanel = new JPanel();
         btnPanel.add(txtName);
-        txtName.setPreferredSize(new Dimension(200, 30));
+        txtName.setPreferredSize(new Dimension(200, 30)); // 设置文本框大小
         btnPanel.add(txtScore);
-        txtScore.setPreferredSize(new Dimension(100, 30));
+        txtScore.setPreferredSize(new Dimension(100, 30)); // 设置文本框大小
         btnPanel.add(btnEdit);
         btnPanel.add(btnDelete);
-        this.add(btnPanel, BorderLayout.SOUTH);
+        this.add(btnPanel, BorderLayout.SOUTH); // 将按钮面板添加到底部
 
         // 表格选择事件
         classTable.getSelectionModel().addListSelectionListener(e -> {
             int selectedRow = classTable.getSelectedRow();
             if (selectedRow >= 0) {
-                txtName.setText(data[selectedRow][1]);
-                txtScore.setText(data[selectedRow][2]);
+                txtName.setText(data[selectedRow][1]); // 显示选中行的小组名称
+                txtScore.setText(data[selectedRow][2]); // 显示选中行的分数
             }
         });
 
@@ -78,7 +96,7 @@ public class GroupListPanel extends JPanel {
                 return;
             }
             try {
-                int score = Integer.parseInt(txtScore.getText().trim());
+                int score = Integer.parseInt(txtScore.getText().trim()); // 将分数转换为整数
 
                 // 更新小组信息
                 String oldName = data[selectedRow][1];

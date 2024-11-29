@@ -1,267 +1,162 @@
 package com.student.view;
 
-import com.student.entity.SchoolClass;
 import com.student.entity.Group;
 import com.student.entity.Student;
-import com.student.service.ClassService;
 import com.student.util.Constant;
+import com.student.util.FileUtil;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.List;
 
+/*
+ 学生列表面板，用于显示和管理学生信息。
+ */
 public class StudentListPanel extends JPanel {
-    private ClassService classService;
-    private SchoolClass currentClass;
-    private JComboBox<Group> groupComboBox;
-    private JList<Student> studentList;
-    private DefaultListModel<Student> listModel;
-    private JButton deleteButton;
-    private JButton detailButton;
-    private JButton changeGroupButton;
-    private JLabel totalCountLabel;
+    // 表格头部标题
+    String[] headers = {"学号", "姓名", "小组"};
+    // 表格数据
+    String[][] data;
+    // 表格组件
+    JTable studentTable;
+    // 文本框和下拉框，用于输入和选择学生信息
+    JTextField txtId = new JTextField();
+    JTextField txtName = new JTextField();
+    JComboBox<String> cmbGroup = new JComboBox<>();
+    // 按钮，用于修改和删除学生信息
+    JButton btnEdit = new JButton("修改");
+    JButton btnDelete = new JButton("删除");
 
-    public StudentListPanel(ClassService classService) {
-        this.classService = classService;
-        initComponents();
-        layoutComponents();
-        addListeners();
-    }
+    /*
+     构造函数，初始化面板。
+     */
+    public StudentListPanel() {
+        // 设置边框样式
+        this.setBorder(new TitledBorder(new EtchedBorder(), "学生列表"));
+        // 设置布局管理器为BorderLayout
+        this.setLayout(new BorderLayout());
 
-    private void initComponents() {
-        setBorder(new TitledBorder(new EtchedBorder(), "学生列表"));
+        // 加载学生和小组数据
+        List<Student> students = FileUtil.loadStudents();
+        List<Group> groups = FileUtil.loadGroups();
 
-        groupComboBox = new JComboBox<>();
-        groupComboBox.addItem(null);
+        // 构建表格数据
+        data = new String[students.size()][3];
+        for (int i = 0; i < students.size(); i++) {
+            Student student = students.get(i);
+            data[i][0] = student.getId(); // 学号
+            data[i][1] = student.getName(); // 姓名
+            data[i][2] = student.getGroupName(); // 小组名
+        }
 
-        listModel = new DefaultListModel<>();
-        studentList = new JList<>(listModel);
-        studentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        studentList.setCellRenderer(new StudentListCellRenderer());
+        // 创建表格模型并设置表格
+        DefaultTableModel tableModel = new DefaultTableModel(data, headers);
+        studentTable = new JTable(tableModel) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // 设置表格不可编辑
+            }
+        };
+        // 设置表格选择模式为单选
+        studentTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        // 将表格放入滚动面板中
+        JScrollPane scrollPane = new JScrollPane(studentTable);
+        this.add(scrollPane, BorderLayout.CENTER);
 
-        deleteButton = new JButton("删除学生");
-        detailButton = new JButton("学生详情");
-        changeGroupButton = new JButton("更改小组");
-        totalCountLabel = new JLabel("当前无班级");
+        // 构建按钮面板
+        JPanel btnPanel = new JPanel();
+        btnPanel.add(txtId);
+        txtId.setPreferredSize(new Dimension(100, 30)); // 设置文本框大小
+        btnPanel.add(txtName);
+        txtName.setPreferredSize(new Dimension(200, 30)); // 设置文本框大小
+        btnPanel.add(cmbGroup);
+        cmbGroup.setPreferredSize(new Dimension(100, 30)); // 设置下拉框大小
 
-        deleteButton.setEnabled(false);
-        detailButton.setEnabled(false);
-        changeGroupButton.setEnabled(false);
-    }
+        // 添加小组到下拉框
+        cmbGroup.addItem("请选择小组");
+        for (Group group : groups) {
+            cmbGroup.addItem(group.getName());
+        }
 
-    private void layoutComponents() {
-        setLayout(new BorderLayout(Constant.PADDING_MEDIUM, Constant.PADDING_MEDIUM));
+        btnPanel.add(btnEdit);
+        btnPanel.add(btnDelete);
+        this.add(btnPanel, BorderLayout.SOUTH); // 将按钮面板添加到底部
 
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.add(new JLabel("选择小组:"));
-        topPanel.add(groupComboBox);
-        topPanel.add(totalCountLabel);
-
-        JScrollPane scrollPane = new JScrollPane(studentList);
-        scrollPane.setPreferredSize(new Dimension(Constant.LIST_WIDTH, Constant.LIST_HEIGHT));
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        buttonPanel.add(detailButton);
-        buttonPanel.add(changeGroupButton);
-        buttonPanel.add(deleteButton);
-
-        add(topPanel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
-    }
-
-    private void addListeners() {
-        groupComboBox.addActionListener(e -> refreshStudentList());
-
-        studentList.addListSelectionListener(e -> {
-            boolean hasSelection = studentList.getSelectedValue() != null;
-            deleteButton.setEnabled(hasSelection);
-            detailButton.setEnabled(hasSelection);
-            changeGroupButton.setEnabled(hasSelection);
-        });
-
-        deleteButton.addActionListener(e -> {
-            Student selectedStudent = studentList.getSelectedValue();
-            if (selectedStudent != null && currentClass != null) {
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "确定要删除学生 " + selectedStudent.getName() + " 吗？",
-                        "确认删除",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE);
-
-                if (confirm == JOptionPane.YES_OPTION) {
-                    if (selectedStudent.getGroupId() != null) {
-                        currentClass.getGroups().stream()
-                                .filter(g -> g.getId().equals(selectedStudent.getGroupId()))
-                                .findFirst()
-                                .ifPresent(g -> g.removeStudent(selectedStudent));
-                    }
-                    currentClass.removeStudent(selectedStudent);
-                    classService.saveData();
-                    refreshData();
-                }
+        // 表格选择事件
+        studentTable.getSelectionModel().addListSelectionListener(e -> {
+            int selectedRow = studentTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                txtId.setText(data[selectedRow][0]); // 显示选中行的学号
+                txtName.setText(data[selectedRow][1]); // 显示选中行的姓名
+                cmbGroup.setSelectedItem(data[selectedRow][2]); // 显示选中行的小组名
             }
         });
 
-        detailButton.addActionListener(e -> {
-            Student selectedStudent = studentList.getSelectedValue();
-            if (selectedStudent != null) {
-                showStudentDetails(selectedStudent);
+        // 修改学生信息
+        btnEdit.addActionListener(e -> {
+            int selectedRow = studentTable.getSelectedRow();
+            if (selectedRow < 0) {
+                JOptionPane.showMessageDialog(this, "请先选择学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
-        });
-
-        changeGroupButton.addActionListener(e -> {
-            Student selectedStudent = studentList.getSelectedValue();
-            if (selectedStudent != null && currentClass != null) {
-                changeStudentGroup(selectedStudent);
+            if (txtId.getText() == null || txtId.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写学号", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
-        });
-    }
-
-    public void onClassChanged(SchoolClass newClass) {
-        this.currentClass = newClass;
-        refreshGroupComboBox();
-        refreshData();
-    }
-
-    private void refreshGroupComboBox() {
-        groupComboBox.removeAllItems();
-        groupComboBox.addItem(null);
-        if (currentClass != null) {
-            for (Group group : currentClass.getGroups()) {
-                groupComboBox.addItem(group);
+            if (txtName.getText() == null || txtName.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写姓名", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
-        }
-    }
-
-    public void refreshData() {
-        refreshGroupComboBox();
-        refreshStudentList();
-    }
-
-    private void refreshStudentList() {
-        listModel.clear();
-        if (currentClass != null) {
-            Group selectedGroup = (Group) groupComboBox.getSelectedItem();
-            if (selectedGroup != null) {
-                for (Student student : selectedGroup.getStudents()) {
-                    listModel.addElement(student);
-                }
-                totalCountLabel.setText(selectedGroup.getName() + " - " +
-                        selectedGroup.getStudents().size() + "人");
-            } else {
-                for (Student student : currentClass.getStudents()) {
-                    listModel.addElement(student);
-                }
-                totalCountLabel.setText(currentClass.getName() + " - 共" +
-                        currentClass.getStudents().size() + "人");
+            if (cmbGroup.getSelectedIndex() == 0) {
+                JOptionPane.showMessageDialog(this, "请选择小组", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
-        } else {
-            totalCountLabel.setText("当前无班级");
-        }
 
-        deleteButton.setEnabled(false);
-        detailButton.setEnabled(false);
-        changeGroupButton.setEnabled(false);
-    }
-
-    private void showStudentDetails(Student student) {
-        StringBuilder details = new StringBuilder();
-        details.append("学生姓名: ").append(student.getName()).append("\n");
-        details.append("学号: ").append(student.getId()).append("\n");
-
-        if (student.getGroupId() != null && currentClass != null) {
-            currentClass.getGroups().stream()
-                    .filter(g -> g.getId().equals(student.getGroupId()))
-                    .findFirst()
-                    .ifPresent(group ->
-                            details.append("所属小组: ").append(group.getName()).append("\n"));
-        }
-
-        details.append("\n得分: ").append(student.getScore());
-
-        JTextArea textArea = new JTextArea(details.toString());
-        textArea.setEditable(false);
-        textArea.setFont(Constant.FONT_NORMAL);
-
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
-
-        JOptionPane.showMessageDialog(this,
-                scrollPane,
-                "学生详情",
-                JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void changeStudentGroup(Student student) {
-        if (currentClass == null) return;
-
-        JComboBox<Group> newGroupComboBox = new JComboBox<>();
-        newGroupComboBox.addItem(null);
-        for (Group group : currentClass.getGroups()) {
-            newGroupComboBox.addItem(group);
-        }
-
-        if (student.getGroupId() != null) {
-            for (int i = 0; i < newGroupComboBox.getItemCount(); i++) {
-                Group group = newGroupComboBox.getItemAt(i);
-                if (group != null && group.getId().equals(student.getGroupId())) {
-                    newGroupComboBox.setSelectedIndex(i);
+            // 更新学生信息
+            String oldId = data[selectedRow][0];
+            for (Student student : students) {
+                if (student.getId().equals(oldId)) {
+                    student.setId(txtId.getText().trim());
+                    student.setName(txtName.getText().trim());
+                    student.setGroupName(cmbGroup.getSelectedItem().toString());
                     break;
                 }
             }
-        }
 
-        int result = JOptionPane.showConfirmDialog(this,
-                new Object[] {
-                        "选择新小组:",
-                        newGroupComboBox
-                },
-                "更改学生小组",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
+            // 更新表格和文件
+            data[selectedRow][0] = txtId.getText().trim();
+            data[selectedRow][1] = txtName.getText().trim();
+            data[selectedRow][2] = cmbGroup.getSelectedItem().toString();
+            ((DefaultTableModel) studentTable.getModel()).setDataVector(data, headers);
+            FileUtil.saveStudents(students);
 
-        if (result == JOptionPane.OK_OPTION) {
-            if (student.getGroupId() != null) {
-                currentClass.getGroups().stream()
-                        .filter(g -> g.getId().equals(student.getGroupId()))
-                        .findFirst()
-                        .ifPresent(g -> g.removeStudent(student));
+            JOptionPane.showMessageDialog(this, "修改成功", "", JOptionPane.INFORMATION_MESSAGE);
+        });
+
+        // 删除学生
+        btnDelete.addActionListener(e -> {
+            int selectedRow = studentTable.getSelectedRow();
+            if (selectedRow < 0) {
+                JOptionPane.showMessageDialog(this, "请先选择学生", "", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (JOptionPane.showConfirmDialog(this, "删除学生会删除他的考勤、成绩等，确认删除？", "", JOptionPane.YES_NO_OPTION) != 0) {
+                return;
             }
 
-            Group newGroup = (Group) newGroupComboBox.getSelectedItem();
-            if (newGroup != null) {
-                newGroup.addStudent(student);
-            }
+            // 从列表中删除学生
+            String studentId = data[selectedRow][0];
+            students.removeIf(student -> student.getId().equals(studentId));
 
-            classService.saveData();
-            refreshData();
-        }
-    }
+            // 更新表格和文件
+            DefaultTableModel model = (DefaultTableModel) studentTable.getModel();
+            model.removeRow(selectedRow);
+            FileUtil.saveStudents(students);
 
-    private class StudentListCellRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(
-                JList<?> list, Object value, int index,
-                boolean isSelected, boolean cellHasFocus) {
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
-            if (value instanceof Student) {
-                Student student = (Student) value;
-                String groupName = "";
-                if (student.getGroupId() != null && currentClass != null) {
-                    groupName = currentClass.getGroups().stream()
-                            .filter(g -> g.getId().equals(student.getGroupId()))
-                            .findFirst()
-                            .map(g -> " - " + g.getName())
-                            .orElse("");
-                }
-                setText(student.getName() + groupName +
-                        " (得分: " + student.getScore() + ")");
-                setFont(Constant.FONT_NORMAL);
-            }
-            return this;
-        }
+            JOptionPane.showMessageDialog(this, "删除学生成功", "", JOptionPane.INFORMATION_MESSAGE);
+        });
     }
 }

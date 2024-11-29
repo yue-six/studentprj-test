@@ -1,151 +1,77 @@
 package com.student.view;
 
-import com.student.entity.SchoolClass;
 import com.student.entity.Group;
-import com.student.service.ClassService;
 import com.student.util.Constant;
+import com.student.util.FileUtil;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import java.awt.*;
-import java.util.UUID;
+import java.util.List;
 
+/**
+ * 这个类是用于添加新小组的面板，继承自JPanel。
+ */
 public class GroupAddPanel extends JPanel {
-    private ClassService classService;
-    private MainFrame mainFrame;
-    private JComboBox<SchoolClass> classComboBox;
-    private JTextField groupNameField;
-    private JButton addButton;
-    private JLabel messageLabel;
+    /**
+     * 构造函数，初始化面板。
+     */
+    public GroupAddPanel() {
+        // 设置布局管理器为null，以便使用绝对定位
+        this.setLayout(null);
+        // 设置边框样式
+        this.setBorder(new TitledBorder(new EtchedBorder(), "新增小组"));
 
-    public GroupAddPanel(MainFrame mainFrame) {
-        this.mainFrame = mainFrame;
-        this.classService = ClassService.getInstance();
-        initComponents();
-        layoutComponents();
-        addListeners();
-    }
+        // 创建标签、文本框和按钮用于输入和确认小组名称
+        JLabel lblName = new JLabel("小组名称：");
+        JTextField txtName = new JTextField();
+        JButton btnName = new JButton("确认");
 
-    private void initComponents() {
-        setBorder(new TitledBorder(new EtchedBorder(), "添加新小组"));
+        // 将组件添加到面板
+        this.add(lblName);
+        this.add(txtName);
+        this.add(btnName);
 
-        classComboBox = new JComboBox<>();
-        groupNameField = new JTextField(20);
-        addButton = new JButton("添加小组");
-        messageLabel = new JLabel(" ");
-        messageLabel.setForeground(Color.BLUE);
+        // 设置组件的位置和大小
+        lblName.setBounds(200, 80, 100, 30);
+        txtName.setBounds(200, 130, 200, 30);
+        btnName.setBounds(200, 180, 100, 30);
 
-        refreshClassComboBox();
-    }
-
-    private void layoutComponents() {
-        setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM,
-                Constant.PADDING_MEDIUM);
-
-        // 班级选择
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("选择班级:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        add(classComboBox, gbc);
-
-        // 小组名称
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.anchor = GridBagConstraints.EAST;
-        add(new JLabel("小组名称:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        gbc.anchor = GridBagConstraints.WEST;
-        add(groupNameField, gbc);
-
-        // 添加按钮
-        gbc.gridx = 1;
-        gbc.gridy = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.NONE;
-        add(addButton, gbc);
-
-        // 消息标签
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
-        add(messageLabel, gbc);
-    }
-
-    private void addListeners() {
-        addButton.addActionListener(e -> {
-            SchoolClass selectedClass = (SchoolClass) classComboBox.getSelectedItem();
-            if (selectedClass == null) {
-                showMessage("请先选择班级", false);
+        // 为确认按钮添加事件监听器
+        btnName.addActionListener(e -> {
+            // 检查文本框是否为空
+            if (txtName.getText() == null || txtName.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "请填写小组名称", "", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
-            String groupName = groupNameField.getText().trim();
-            if (groupName.isEmpty()) {
-                showMessage("小组名称不能为空", false);
+            // 获取输入的小组名称并去除前后空格
+            String groupName = txtName.getText().trim();
+
+            // 加载现有的小组列表
+            List<Group> groups = FileUtil.loadGroups();
+
+            // 检查小组名称是否重复
+            boolean isDuplicate = groups.stream()
+                    .anyMatch(group -> group.getName().equals(groupName));
+            if (isDuplicate) {
+                JOptionPane.showMessageDialog(this, "小组名称已存在", "", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
+            // 创建新小组并添加到列表
+            Group newGroup = new Group(groupName);
+            groups.add(newGroup);
+
+            // 保存到文件
             try {
-                // 创建新小组
-                Group newGroup = new Group(
-                        UUID.randomUUID().toString(),
-                        groupName,
-                        selectedClass.getId()
-                );
-
-                // 添加到班级
-                selectedClass.addGroup(newGroup);
-
-                // 保存数据
-                classService.saveData();
-
-                // 清空输入框
-                groupNameField.setText("");
-
-                // 显示成功消息
-                showMessage("小组 " + groupName + " 添加成功", true);
-
-                // 刷新界面
-                mainFrame.refreshAll();
-
+                FileUtil.saveGroups(groups);
+                JOptionPane.showMessageDialog(this, "新增小组成功", "", JOptionPane.INFORMATION_MESSAGE);
+                txtName.setText(""); // 清空输入框
             } catch (Exception ex) {
-                showMessage("添加小组失败: " + ex.getMessage(), false);
+                JOptionPane.showMessageDialog(this, "保存小组信息失败：" + ex.getMessage(),
+                        "", JOptionPane.ERROR_MESSAGE);
             }
         });
-    }
-
-    private void showMessage(String message, boolean isSuccess) {
-        messageLabel.setText(message);
-        messageLabel.setForeground(isSuccess ? Color.BLUE : Color.RED);
-
-        Timer timer = new Timer(3000, e -> messageLabel.setText(" "));
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-    public void refreshClassComboBox() {
-        classComboBox.removeAllItems();
-        for (SchoolClass schoolClass : classService.getAllClasses()) {
-            classComboBox.addItem(schoolClass);
-        }
-    }
-
-    public void clearFields() {
-        groupNameField.setText("");
-        messageLabel.setText(" ");
     }
 }
